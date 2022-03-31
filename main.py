@@ -13,14 +13,19 @@ def train(model, optimizer, train_loader, epoch, tb):
     model.train()
     for i, train_batch in enumerate(train_loader):
         train_batch = train_batch.to(device)
-
-        # print(f"train_batch: {len(train_batch)}")
+        
+        # train_batch形状：将一个batch的正负样本整合起来
+        # Batch(edge_index=[2, 836], edge_weight=[836, 1], rcid_index=[174], scid_index=[174], slices_indicator=[33], type_embedding=[836], x=[174, 3, 112, 112], y=[32])
+        # 所以此时一个Batch中Data实例的大小为batch_size*(num_negative + 1)，1为正样本数量
         # print(f"train_batch: {train_batch}")
+
+        # print(f"len_train_batch: {len(train_batch)}")
+        # len(train_batch) = batch_size // (num_negative + 1), 1为正样本数量
 
         # ret = fine_score
         ret, type_mask_norm, img_embed_norm, diversity_norm = model(train_batch)
 
-        # print(f'fine score: {ret.shape}')
+        # print(f'fine score: {ret.shape}')  fine score.shape: [batch_size * (num_negative + 1), 1]
 
         bpr_loss, batch_acc = model.bpr_loss(ret)
 
@@ -115,6 +120,15 @@ def main(args):
     best_auc, best_fitb, best_total = 0., 0., 0.
     for epoch in range(args.epoch):
         train_loader = DataLoader(train_dataset, shuffle=True, **loader_kwargs)
+        
+        # Dataset[idx]形状：一个正样本+一个负样本
+        # [Data(edge_index=[2, 6], edge_weight=[6], file_items=[3], rcid_index=[3], scid_index=[3], type_embedding=[6], x=[3, 3, 112, 112], y=[1]),
+        #  Data(edge_index=[2, 6], edge_weight=[6], file_items=[3], rcid_index=[3], scid_index=[3], type_embedding=[6], x=[3, 3, 112, 112], y=[1])]
+        
+        # print(f"len(train_dataset): {len(train_dataset)}")
+        # print(f"len(train_loader): {len(train_loader)}")
+        # len(train_dataset) // batch_size = len(train_loader)
+        
         Timer.start('epoch_turn')
 
         # train for one epoch

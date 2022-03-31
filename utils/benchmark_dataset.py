@@ -579,19 +579,22 @@ class BenchmarkDataset(Dataset):
             img = image_loader(osp.join(self._image_dir, fn))
             img_data.append(apply_transform(img))
 
-        return torch.stack(img_data, dim=0)  # N,3,112,112
+        # print(torch.stack(img_data, dim=0).shape)
+        return torch.stack(img_data, dim=0)  # N,3,112,112，N为img_fns中图片的数量
 
     def __getitem__(self, index):
         if self.split == 'train':
             bundle = [self.pos_list[index].clone()] + [obj.clone() for obj in self.neg_list[index]]
         else:
             bundle = [obj.clone() for obj in self.kpi_list[index]]
+        # print(f"self.pos_list[index]: {self.pos_list[index]}")
+        # print(f"self.neg_list[index]: {self.neg_list[index]}")
         # print(f"bundle: {bundle}")
         for one in bundle:
             # print(f"one: {one}")
             img_fns = [f"{iid}.jpg" for iid in one["file_items"]]
-            one.x = self._fetch_img(img_fns)
-
+            one.x = self._fetch_img(img_fns)  # N, 3, 112, 112, N为img_fns中图片即file_items的数量
+            # print(f"one.x: {one.x.shape}")
         return bundle
 
     def __len__(self):

@@ -127,7 +127,7 @@ class CF(nn.Module):
     def forward(self, data):
 
         # print(data)
-        # data.x: (N, 3, img_len, img_width) N为一个batch的rcid_index=scid_index数
+        # data.x: (N, 3, img_len, img_width) N为一个batch（包括正样本和负样本）的img_item数
 
         # get img embed
         # print(f"原data.x.shape: {data.x.shape}")
