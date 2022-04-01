@@ -19,6 +19,8 @@ from torch_geometric.data import Data
 from torchvision import transforms
 from tqdm import tqdm
 
+from .mixup import Mixup
+
 from utils.tools import Timer
 
 
@@ -40,7 +42,8 @@ def load_compatibility_questions(fn, id2im):
     compatibility_questions = []
     for line in lines:
         data = line.strip().split()
-        compat_question = [id2im[iid] for iid in data[1:]]  # id2im 将 set_id _ item_index 转为对应的 item_id
+        # id2im 将 set_id _ item_index 转为对应的 item_id
+        compat_question = [id2im[iid] for iid in data[1:]]
         compatibility_questions.append((compat_question, int(data[0])))
 
     return compatibility_questions
@@ -159,10 +162,12 @@ class BenchmarkDataset(Dataset):
 
         # _args.data_dir = data
         # _root_dir = data/polyvore_outfits/nondisjoint（或disjoint）
-        cls._root_dir = osp.join(cls._args.data_dir, 'polyvore_outfits', cls._args.polyvore_split)
+        cls._root_dir = osp.join(
+            cls._args.data_dir, 'polyvore_outfits', cls._args.polyvore_split)
 
         # _image_dir = data/polyvore_outfits/images
-        cls._image_dir = osp.join(cls._args.data_dir, 'polyvore_outfits', 'images')
+        cls._image_dir = osp.join(
+            cls._args.data_dir, 'polyvore_outfits', 'images')
 
         # _meta_data = data/polyvore_outfits/polyvore_item_metadata.json
         # _meta_data保存了item具体的信息：包括name, description, category...
@@ -177,7 +182,8 @@ class BenchmarkDataset(Dataset):
         cls._seman2dense = preprocessing.get("seman2dense")
 
         # 使用 semantic_category 构建图
-        cls._co_type_weight = cls._calc_co_weight(cls._seman2dense, 'semantic_category')
+        cls._co_type_weight = cls._calc_co_weight(
+            cls._seman2dense, 'semantic_category')
 
     @property
     def num_category(self):
@@ -228,9 +234,11 @@ class BenchmarkDataset(Dataset):
             cls._max_outfit_len = max(cls._max_outfit_len, len(cate_list))
             for i in range(len(cate_list)):
                 # 获取 seman_category 对应的编号（即通过 _seman2dense 映射得到的编号，也对应 total_graph 的行与列）
-                rcid = cls._get_im_dense_type(cate_list[i]["item_id"], dense_mapping, dense_key)
+                rcid = cls._get_im_dense_type(
+                    cate_list[i]["item_id"], dense_mapping, dense_key)
                 for j in range(i + 1, len(cate_list)):
-                    rcjd = cls._get_im_dense_type(cate_list[j]["item_id"], dense_mapping, dense_key)
+                    rcjd = cls._get_im_dense_type(
+                        cate_list[j]["item_id"], dense_mapping, dense_key)
                     # train.json 中的 "items" 中记录了同时出现的 item
                     total_graph[rcid][rcjd] += 1.
                     total_graph[rcjd][rcid] += 1.
@@ -283,8 +291,10 @@ class BenchmarkDataset(Dataset):
         imnames = list(imnames)
         self.imnames = imnames  # imnames 保存 所有（服装）的所有 item_id
         self.im2type = im2type  # item_id 到 （seman_category 和 cate_category）的转换
-        self.id2im = id2im  # (一套服装的) set_id _ item_id的索引（从1开始，依次递增）到 item_id 的转换
-        self.category2ims = category2ims  # seman_category 到 item_id 的转换（不同的 item_id 的 seman_category 可能相同）
+        # (一套服装的) set_id _ item_id的索引（从1开始，依次递增）到 item_id 的转换
+        self.id2im = id2im
+        # seman_category 到 item_id 的转换（不同的 item_id 的 seman_category 可能相同）
+        self.category2ims = category2ims
         self.split = split
         # self.typespaces = {('bags', 'shoes'): 0, ('bags', 'jewellery'): 1, ...}
         self.typespaces = load_typespaces(self._root_dir)
@@ -310,7 +320,8 @@ class BenchmarkDataset(Dataset):
         self.num_negative = num_negative
         Timer.start('train_neg')
         # negative sample strategy: random -> same type -> replace
-        self.neg_list = self._generate_neg_sample_rand2same2one(begin_same, begin_one)
+        self.neg_list = self._generate_neg_sample_rand2same2one(
+            begin_same, begin_one)
         Timer.end('train_neg')
 
         return self
@@ -340,7 +351,8 @@ class BenchmarkDataset(Dataset):
             # each: (['154249722', '188425631', '183214727'], True)
             for each in fitb:
                 # each: (items, label)
-                ret_data = self._wrapper(*each)  # *each = ['154249722', '188425631', '183214727'] True
+                # *each = ['154249722', '188425631', '183214727'] True
+                ret_data = self._wrapper(*each)
                 post_fitb.append(ret_data)
             # post_fitb: [P,N,N,N]
             ret.append(post_fitb)
@@ -351,7 +363,8 @@ class BenchmarkDataset(Dataset):
 
     def test_retrieval(self):
         ret = []
-        fn = osp.join(self._args.data_dir, 'polyvore_outfits', 'retrieval', "{}.json".format(self._args.polyvore_split))
+        fn = osp.join(self._args.data_dir, 'polyvore_outfits',
+                      'retrieval', "{}.json".format(self._args.polyvore_split))
         retrieval_questions = load_retrieval_questions(fn, self.id2im)
 
         print('pack to kpi list ...')
@@ -388,7 +401,8 @@ class BenchmarkDataset(Dataset):
         file_items: 一套服装的所有 item_id
         compatibility: True or False
         """
-        index_source, index_target, edge_weight, type_embedding, y = [], [], [], [], [int(compatibility)]
+        index_source, index_target, edge_weight, type_embedding, y = [
+        ], [], [], [], [int(compatibility)]
         rcid_index = []
         scid_index = []
         for j, j_item in enumerate(file_items):
@@ -415,18 +429,22 @@ class BenchmarkDataset(Dataset):
                 s_i_rcid, i_rcid = self._seman2dense[sema_raw_i], self._cate2dense[cate_raw_i]
 
                 # 获取通过传入 seman_category 的 _calc_co_weight 方法而构建的图的边权值
-                edge_weight.append(self._co_type_weight[s_j_rcid][s_i_rcid])  # probs of j, given i
+                # probs of j, given i
+                edge_weight.append(self._co_type_weight[s_j_rcid][s_i_rcid])
                 # 如 ('bags', 'shoes'): 0
                 # sema_raw_j = 'bags', sema_raw_i = 'shoes', 则 _get_typespace 返回 0
-                type_embedding.append(self._get_typespace(sema_raw_j, sema_raw_i))
+                type_embedding.append(
+                    self._get_typespace(sema_raw_j, sema_raw_i))
 
         # edge_index: 2x2 tensor，第一行为 index_source（边的起始点），第二行为 index_target（边的终点）
         data = Data(rcid_index=torch.tensor(rcid_index, dtype=torch.long),
                     scid_index=torch.tensor(scid_index, dtype=torch.long),
                     file_items=file_items,
-                    edge_index=torch.tensor([index_source, index_target], dtype=torch.long),
+                    edge_index=torch.tensor(
+                        [index_source, index_target], dtype=torch.long),
                     edge_weight=torch.tensor(edge_weight, dtype=torch.float32),
-                    type_embedding=torch.tensor(type_embedding, dtype=torch.long),
+                    type_embedding=torch.tensor(
+                        type_embedding, dtype=torch.long),
                     y=torch.tensor(y).float())
         return data
 
@@ -434,11 +452,14 @@ class BenchmarkDataset(Dataset):
         ret = []
         for i, pos in enumerate(self.pos_list):
             if self._call_next_epoch < begin_same:
-                ret.append(self._neg_rand(i, len(pos["file_items"]), self.num_negative))
+                ret.append(self._neg_rand(
+                    i, len(pos["file_items"]), self.num_negative))
             elif self._call_next_epoch < begin_one:
-                ret.append(self._neg_rand_same_type(i, pos["file_items"], self.num_negative))
+                ret.append(self._neg_rand_same_type(
+                    i, pos["file_items"], self.num_negative))
             else:
-                ret.append(self._neg_rand_same_type_one(i, pos["file_items"], self.num_negative))
+                ret.append(self._neg_rand_same_type_one(
+                    i, pos["file_items"], self.num_negative))
 
         print('negative sample done!')
         return ret
@@ -489,8 +510,10 @@ class BenchmarkDataset(Dataset):
             neg_outfit_ids = []
             for i in range(neg_len):
                 while True:
-                    sem, _ = self.im2type[file_items[i]]  # 获取 item_id 的 seman_category 类别
-                    candidate_sets = self.category2ims[sem]  # 属于该类别的所有 item_id 的集合
+                    # 获取 item_id 的 seman_category 类别
+                    sem, _ = self.im2type[file_items[i]]
+                    # 属于该类别的所有 item_id 的集合
+                    candidate_sets = self.category2ims[sem]
                     nno = np.random.randint(0, len(candidate_sets))
                     neg = candidate_sets[nno]
 
@@ -519,10 +542,12 @@ class BenchmarkDataset(Dataset):
             tmp_num_neg = num_negative
             if neg_len < num_negative:
                 while neg_len < tmp_num_neg:
-                    tmp_neg_iid += random.sample(range(neg_len), k=neg_len)  # 将 range(neg_len) 这个列表打乱并返回长度为 k 的其中部分列表
+                    # 将 range(neg_len) 这个列表打乱并返回长度为 k 的其中部分列表
+                    tmp_neg_iid += random.sample(range(neg_len), k=neg_len)
                     tmp_num_neg -= neg_len  # 重复 num_negative / neg_len 次
 
-            return tmp_neg_iid + random.sample(range(neg_len), k=tmp_num_neg)  # 返回剩余的含 num_negative % neg_len 个数目的打乱的列表
+            # 返回剩余的含 num_negative % neg_len 个数目的打乱的列表
+            return tmp_neg_iid + random.sample(range(neg_len), k=tmp_num_neg)
 
         if i and i % 5000 == 0:
             print(f"neg sample at {i}")
@@ -584,17 +609,33 @@ class BenchmarkDataset(Dataset):
 
     def __getitem__(self, index):
         if self.split == 'train':
-            bundle = [self.pos_list[index].clone()] + [obj.clone() for obj in self.neg_list[index]]
+            bundle = [self.pos_list[index].clone()] + [obj.clone()
+                                                       for obj in self.neg_list[index]]
         else:
             bundle = [obj.clone() for obj in self.kpi_list[index]]
+            
+        # 一个bundle有两个样本（若是训练模式）：正样本和负样本，且都是一套服装
         # print(f"self.pos_list[index]: {self.pos_list[index]}")
         # print(f"self.neg_list[index]: {self.neg_list[index]}")
         # print(f"bundle: {bundle}")
+        
         for one in bundle:
-            # print(f"one: {one}")
             img_fns = [f"{iid}.jpg" for iid in one["file_items"]]
-            one.x = self._fetch_img(img_fns)  # N, 3, 112, 112, N为img_fns中图片即file_items的数量
-            # print(f"one.x: {one.x.shape}")
+            one.x = self._fetch_img(img_fns)  # n, 3, 112, 112, n为一套服装的file_items的数量
+        
+        # mixup
+        if self.split == 'train' and index % 5 == 0:
+            mixup_idx = random.randint(0, len(self.pos_list) - 1)
+            mixup_bundle = [self.pos_list[mixup_idx].clone()] + \
+                           [obj.clone() for obj in self.neg_list[mixup_idx]]
+            
+            mixup_bundle2 = mixup_bundle.copy()
+            for one in mixup_bundle2:
+                img_fns = [f"{iid}.jpg" for iid in one["file_items"]]
+                one.x = self._fetch_img(img_fns)
+            
+            bundle = Mixup(bundle, mixup_bundle2)
+                    
         return bundle
 
     def __len__(self):
