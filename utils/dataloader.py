@@ -19,8 +19,11 @@ class Batch(Data):
         r""" re-assign edge index, due to the edge index must be unique in one graph.
         Concretely, add offset to each edge index of the small graph, and to construct a big graph.
         """
-
+        # print(f"data_list: {data_list}")
+        # print(f"type(data_list[0][0]): {type(data_list[0][0])}")
+        # print(f"data_list[0][0]: {data_list[0][0]}")
         keys = data_list[0][0].keys
+        # print(f"keys: {keys}")
         assert 'slices_indicator' not in keys
 
         # slices_indicator is number of nodes in each graph

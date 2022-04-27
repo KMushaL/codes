@@ -34,7 +34,7 @@ def load_compatibility_questions(fn, id2im):
 
         fn: 1 210750761_1 210750761_2 210750761_3，1为label，后面的为 set_id _ item_index
 
-        @return: [([items],label)], 如(['154249722', '188425631', '183214727'], 1)
+        :return: [([items],label)], 如(['154249722', '188425631', '183214727'], 1)
         """
     with open(fn, 'r') as f:
         lines = f.readlines()
@@ -253,7 +253,7 @@ class BenchmarkDataset(Dataset):
                                       f"you must init class firstly by calling BenchmarkDataset.init(args)"
 
         # _root_dir = data/polyvore_outfits/nondisjoint/split.json
-        # spilt包括train, valid和test
+        # spilt包括train, valid, test和pred
         data_json = osp.join(self._root_dir, '%s.json' % split)
         # outfit_data = data/polyvore_outfits/nondisjoint/split
         with open(data_json, 'r') as fp:
@@ -330,6 +330,7 @@ class BenchmarkDataset(Dataset):
         ret = []
         fn = osp.join(self._root_dir, file_name_format % self.split)
         compatibility_questions = load_compatibility_questions(fn, self.id2im)
+        # compatibility_question: ([items],label), 如(['154249722', '188425631', '183214727'], 1)
 
         for items, label in compatibility_questions:
             ret_data = self._wrapper(items, label)
@@ -401,8 +402,7 @@ class BenchmarkDataset(Dataset):
         file_items: 一套服装的所有 item_id
         compatibility: True or False
         """
-        index_source, index_target, edge_weight, type_embedding, y = [
-        ], [], [], [], [int(compatibility)]
+        index_source, index_target, edge_weight, type_embedding, y = [], [], [], [], [int(compatibility)]
         rcid_index = []
         scid_index = []
         for j, j_item in enumerate(file_items):
@@ -436,7 +436,8 @@ class BenchmarkDataset(Dataset):
                 type_embedding.append(
                     self._get_typespace(sema_raw_j, sema_raw_i))
 
-        # edge_index: 2x2 tensor，第一行为 index_source（边的起始点），第二行为 index_target（边的终点）
+        # print(torch.tensor(edge_weight, dtype=torch.float32).shape)
+        # edge_index: 2x_ tensor，第一行为 index_source（边的起始点），第二行为 index_target（边的终点）
         data = Data(rcid_index=torch.tensor(rcid_index, dtype=torch.long),
                     scid_index=torch.tensor(scid_index, dtype=torch.long),
                     file_items=file_items,
@@ -446,6 +447,7 @@ class BenchmarkDataset(Dataset):
                     type_embedding=torch.tensor(
                         type_embedding, dtype=torch.long),
                     y=torch.tensor(y).float())
+        # print(f"data: {data}")
         return data
 
     def _generate_neg_sample_rand2same2one(self, begin_same, begin_one):
@@ -534,6 +536,7 @@ class BenchmarkDataset(Dataset):
         num_negative: 负样本数量
         return: 将一套服装其中的 item 换成其对应类别除其之外的 item
         """
+
         def com_sample():
             """
             return: 随机获取需要替换的位置列表
@@ -613,29 +616,29 @@ class BenchmarkDataset(Dataset):
                                                        for obj in self.neg_list[index]]
         else:
             bundle = [obj.clone() for obj in self.kpi_list[index]]
-            
+
         # 一个bundle有两个样本（若是训练模式）：正样本和负样本，且都是一套服装
         # print(f"self.pos_list[index]: {self.pos_list[index]}")
         # print(f"self.neg_list[index]: {self.neg_list[index]}")
         # print(f"bundle: {bundle}")
-        
+
         for one in bundle:
             img_fns = [f"{iid}.jpg" for iid in one["file_items"]]
             one.x = self._fetch_img(img_fns)  # n, 3, 112, 112, n为一套服装的file_items的数量
-        
+
         # mixup
         if self.split == 'train' and index % 5 == 0:
             mixup_idx = random.randint(0, len(self.pos_list) - 1)
             mixup_bundle = [self.pos_list[mixup_idx].clone()] + \
                            [obj.clone() for obj in self.neg_list[mixup_idx]]
-            
+
             mixup_bundle2 = mixup_bundle.copy()
             for one in mixup_bundle2:
                 img_fns = [f"{iid}.jpg" for iid in one["file_items"]]
                 one.x = self._fetch_img(img_fns)
-            
+
             bundle = Mixup(bundle, mixup_bundle2)
-                    
+
         return bundle
 
     def __len__(self):

@@ -63,7 +63,7 @@ class CORL(nn.Module):
         return branches
 
     def forward(self, data):
-        img_node = data.x.clone()  # (N,D) N为一个batch的rcid_index=scid_index数,D 为embedding
+        img_node = data.x.clone()  # (N,D) N为一个batch（包括正样本和负样本）的img_item数,D 为embedding
 
         # print(f"img_node: {img_node.shape}")
 
@@ -126,7 +126,6 @@ class CF(nn.Module):
 
     def forward(self, data):
 
-        # print(data)
         # data.x: (N, 3, img_len, img_width) N为一个batch（包括正样本和负样本）的img_item数
 
         # get img embed
@@ -141,6 +140,7 @@ class CF(nn.Module):
         fine_feature, fine_score, attr_type_mask_norm, diversity_loss = self.disentangle_gablock(disentangle_data)
         # fine_feature: (Graph_N,2D), fine_score: (Graph_N, 1), attr_type_mask_norm: 标量，为损失,
         # img_embed_norm为标准化后的embedding, diversity_loss分类损失
+        # print(f"fine_score: {fine_score}")
         return fine_score, attr_type_mask_norm, img_embed_norm, diversity_loss
 
     def bpr_loss(self, output):

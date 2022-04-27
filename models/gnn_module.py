@@ -36,7 +36,8 @@ class GNN(torch_geometric.nn.MessagePassing):
         :param data: Batch data
         :return: GNN result
         """
-
+        # print(f"fnn_data: {data}")
+        # print(f"data.edge_weight.shape: {data.edge_weight.shape}")
         out = self.propagate(data.edge_index, x=data.x, edge_weight=data.edge_weight)
         assert out.size() == data.x.size()
 
@@ -56,6 +57,10 @@ class GNN(torch_geometric.nn.MessagePassing):
                 self.embedding_l1 = torch.zeros(1).to(x_i.device)
 
         # x_j * x_i 为 q_ij
+        # print(f"x_j.shape: {x_j.shape}")
+        # print(f"x_i.shape: {x_i.shape}")
+        # print(f"gate_dim.shape: {gate_dim.shape}")
+        # print(f"edge_weight.shape: {edge_weight.shape}")
         return F.leaky_relu(x_j * x_i * gate_dim) * edge_weight
 
     def __repr__(self):
